@@ -596,9 +596,109 @@ zaphod:complete$
 particularly, code that will be built using maven. Specify the name of the app as "sample-boot-app". Note that:
     1.  You should use the "--as-deployment-config" flag on the new-app command.
     2.  You should also specify the "--context-dir" flag, with the "complete" sub-directory specified as its value
+```
+zaphod:complete$ oc new-app --name=sample-boot-app java:11~https://github.com/kstephen314159/s2i-builds.git --as-deployment-config --context-dir=complete
+--> Found image 5232a63 (5 weeks old) in image stream "openshift/java" under tag "11" for "java:11"
+
+    Java Applications 
+    ----------------- 
+    Platform for building and running plain Java applications (fat-jar and flat classpath)
+
+    Tags: builder, java
+
+    * A source build using source code from https://github.com/kstephen314159/s2i-builds.git will be created
+      * The resulting image will be pushed to image stream tag "sample-boot-app:latest"
+      * Use 'oc start-build' to trigger a new build
+    * This image will be deployed in deployment config "sample-boot-app"
+    * Ports 8080/tcp, 8443/tcp, 8778/tcp will be load balanced by service "sample-boot-app"
+      * Other containers can access this service through the hostname "sample-boot-app"
+
+--> Creating resources ...
+    imagestream.image.openshift.io "sample-boot-app" created
+    buildconfig.build.openshift.io "sample-boot-app" created
+    deploymentconfig.apps.openshift.io "sample-boot-app" created
+    service "sample-boot-app" created
+--> Success
+    Build scheduled, use 'oc logs -f buildconfig/sample-boot-app' to track its progress.
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/sample-boot-app' 
+    Run 'oc status' to view your app.
+zaphod:complete$
+```
+
 5. Observe the build by using the "oc logs" command to look at the buildconfig for "sample-boot-app".
+```
+zaphod:complete$ oc logs -f bc/sample-boot-app
+Cloning "https://github.com/kstephen314159/s2i-builds.git" ...
+	Commit:	1509218662473e275b50ba66022b767eced6f397 (updated README.md with exercise instructions)
+	Author:	Kenneth Stephen <kstephe@us.ibm.com>
+	Date:	Sun Feb 28 19:02:39 2021 -0500
+Caching blobs under "/var/cache/blobs".
+Getting image source signatures
+Copying blob sha256:a6babf54cb34226edceaeb593bf791a5c8c4de01399756ac710b438a282bb249
+Copying blob sha256:8ef598dbb46127ae7fd03bd1004f2e64e451a84213a72165166cbfb5e6f515b8
+Copying blob sha256:bade03519b0d36b16221d683ad4b69fe6e3ab13bce6558c4a33e4c844680d700
+Copying config sha256:5232a63e55ce640182b9735473ae6efa4b1384466917eff935424c4c1fd1afce
+Writing manifest to image destination
+Storing signatures
+Generating dockerfile with builder image image-registry.openshift-image-registry.svc:5000/openshift/java@sha256:c343983d08baf2b3cc19483734808b07523a0860a5b17fdcb32de2d1b85306ca
+STEP 1: FROM image-registry.openshift-image-registry.svc:5000/openshift/java@sha256:c343983d08baf2b3cc19483734808b07523a0860a5b17fdcb32de2d1b85306ca
+.
+.
+.
+```
+
 6. After the build is done running, use the "oc get pods" command to observe the status of the application. Initially, you will see a deploy
 pod instantiated. After it is done running, the pod for the actual application will be instantiated.
+```
+zaphod:complete$ oc get pods
+NAME                               READY   STATUS      RESTARTS   AGE
+.
+.
+.
+sample-boot-app-1-build            0/1     Completed   0          3m6s
+sample-boot-app-1-dbm7v            1/1     Running     0          103s
+sample-boot-app-1-deploy           0/1     Completed   0          109s
+.
+.
+zaphod:complete$
+```
+
 7. Observe the logs of the application as it starts up, using the "oc logs" command.
+```
+zaphod:complete$ oc logs -f sample-boot-app-1-dbm7v
+Starting the Java application using /opt/jboss/container/java/run/run-java.sh ...
+INFO exec  java -javaagent:/usr/share/java/jolokia-jvm-agent/jolokia-jvm.jar=config=/opt/jboss/container/jolokia/etc/jolokia.properties -XX:+UseParallelOldGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -XX:MaxMetaspaceSize=100m -XX:+ExitOnOutOfMemoryError -cp "." -jar /deployments/spring-boot-0.0.1-SNAPSHOT.jar  
+WARNING: An illegal reflective access operation has occurred
+WARNING: Illegal reflective access by org.jolokia.util.ClassUtil (file:/usr/share/java/jolokia-jvm-agent/jolokia-jvm.jar) to constructor sun.security.x509.X500Name(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+WARNING: Please consider reporting this to the maintainers of org.jolokia.util.ClassUtil
+WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
+WARNING: All illegal access operations will be denied in a future release
+I> No access restrictor found, access to any MBean is allowed
+Jolokia: Agent started with URL https://172.30.95.240:8778/jolokia/
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v2.4.2)
+
+2021-03-01 01:30:09.027  INFO 1 --- [           main] com.example.springboot.Application       : Starting Application v0.0.1-SNAPSHOT using Java 11.0.10 on sample-boot-app-1-dbm7v with PID 1 (/deployments/spring-boot-0.0.1-SNAPSHOT.jar started by jboss in /deployments)
+.
+.
+.
+```
+
 8. Create a route for the application by using the "oc create route edge" command. This will produce an https endpoint that you can access via
 the browser. Check to see that you get a message at the root URI saying "Greetings from Spring Boot!".
+```
+zaphod:complete$ oc create route edge --service=sample-boot-app
+route.route.openshift.io/sample-boot-app created
+zaphod:complete$ oc get route sample-boot-app
+NAME              HOST/PORT                                                                                                                   PATH   SERVICES          PORT       TERMINATION   WILDCARD
+sample-boot-app   sample-boot-app-kstephe-us.ose-bootcamp-1612539632-f72ef11f3ab089a8c677044eb28292cd-0000.sjc03.containers.appdomain.cloud          sample-boot-app   8080-tcp   edge          None
+zaphod:complete$ curl -k https://sample-boot-app-kstephe-us.ose-bootcamp-1612539632-f72ef11f3ab089a8c677044eb28292cd-0000.sjc03.containers.appdomain.cloud
+Greetings from Spring Boot!zaphod:complete$
+```
